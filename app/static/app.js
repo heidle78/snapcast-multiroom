@@ -370,78 +370,63 @@ async function createCombineSink(ev) {
   }
 }
 
-// All PulseAudio channel names (matches Sendspin's PulseAudioChannels.AllChannels)
+// PulseAudio channel names with human-readable labels (matches Sendspin)
 const PA_CHANNELS = [
-  "front-left", "front-right", "front-center", "lfe",
-  "rear-left", "rear-right", "rear-center",
-  "side-left", "side-right",
-  "mono", "left", "right", "center", "subwoofer"
+  { value: "front-left",   label: "Front Left"   },
+  { value: "front-right",  label: "Front Right"  },
+  { value: "front-center", label: "Front Center" },
+  { value: "lfe",          label: "LFE (Subwoofer)" },
+  { value: "rear-left",    label: "Rear Left"    },
+  { value: "rear-right",   label: "Rear Right"   },
+  { value: "side-left",    label: "Side Left"    },
+  { value: "side-right",   label: "Side Right"   },
+  { value: "mono",         label: "Mono"         },
 ];
 
-// Human-readable labels for the 8-channel surround layout of the DAC
-const PA_CHANNEL_LABELS = {
-  "front-left":   "front-left   (Kanal 1)",
-  "front-right":  "front-right  (Kanal 2)",
-  "front-center": "front-center (Kanal 3)",
-  "lfe":          "lfe          (Kanal 4)",
-  "rear-left":    "rear-left    (Kanal 5)",
-  "rear-right":   "rear-right   (Kanal 6)",
-  "side-left":    "side-left    (Kanal 7)",
-  "side-right":   "side-right   (Kanal 8)",
-  "rear-center":  "rear-center",
-  "mono":         "mono",
-  "left":         "left",
-  "right":        "right",
-  "center":       "center",
-  "subwoofer":    "subwoofer",
-};
-
-function channelOptions(selected) {
-  return PA_CHANNELS.map(ch =>
-    `<option value="${ch}"${ch === selected ? " selected" : ""}>${PA_CHANNEL_LABELS[ch] || ch}</option>`
-  ).join("");
+function channelSelect(selected, cls) {
+  return `<select class="form-select form-select-sm ${cls}">
+    ${PA_CHANNELS.map(ch =>
+      `<option value="${ch.value}"${ch.value === selected ? " selected" : ""}>${ch.label}</option>`
+    ).join("")}
+  </select>`;
 }
 
-// Default output channel names per row index (stereo output convention)
-const DEFAULT_OUTPUT_CH = ["front-left", "front-right", "front-left", "front-right"];
-
-function addRemapChannelRow(outputCh, masterCh) {
+function renderRemapRows() {
+  const isMono = document.getElementById("remap-mode-mono").checked;
   const rows = document.getElementById("remap-channel-rows");
-  const idx = rows.children.length;
-  const outCh = outputCh || DEFAULT_OUTPUT_CH[idx] || "front-left";
-  const mstCh = masterCh || PA_CHANNELS[idx] || "front-left";
-  const div = document.createElement("div");
-  div.className = "d-flex gap-2 align-items-center";
-  div.innerHTML = `
-    <select class="form-select form-select-sm remap-out-ch" title="Ausgangskanal">${channelOptions(outCh)}</select>
-    <span class="text-body-secondary flex-shrink-0">→</span>
-    <select class="form-select form-select-sm remap-master-ch" title="Quellkanal im Master">${channelOptions(mstCh)}</select>
-    <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" onclick="this.closest('div').remove()">
-      <i class="fa-solid fa-xmark"></i>
-    </button>`;
-  rows.appendChild(div);
+  if (isMono) {
+    rows.innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-body-secondary fw-semibold" style="min-width:100px">Mono Output</span>
+        <span class="text-body-secondary">←</span>
+        ${channelSelect("front-left", "remap-master-ch")}
+      </div>`;
+  } else {
+    rows.innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-body-secondary fw-semibold" style="min-width:100px">Left Output</span>
+        <span class="text-body-secondary">←</span>
+        ${channelSelect("front-left", "remap-master-ch")}
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-body-secondary fw-semibold" style="min-width:100px">Right Output</span>
+        <span class="text-body-secondary">←</span>
+        ${channelSelect("front-right", "remap-master-ch")}
+      </div>`;
+  }
 }
 
 function initRemapRows() {
-  document.getElementById("remap-channel-rows").innerHTML = "";
-  // Default: stereo (front-left→front-left, front-right→front-right)
-  addRemapChannelRow("front-left",  "front-left");
-  addRemapChannelRow("front-right", "front-right");
+  document.getElementById("remap-mode-stereo").checked = true;
+  renderRemapRows();
 }
 
 async function createRemapSink(ev) {
   ev.preventDefault();
-  const rows = document.querySelectorAll("#remap-channel-rows > div");
-  if (rows.length === 0) {
-    toast("Bitte mindestens einen Kanal hinzufügen", true);
-    return;
-  }
-  const outputChannels = [];
-  const masterChannels = [];
-  rows.forEach(row => {
-    outputChannels.push(row.querySelector(".remap-out-ch").value);
-    masterChannels.push(row.querySelector(".remap-master-ch").value);
-  });
+  const isMono = document.getElementById("remap-mode-mono").checked;
+  const masterSelects = [...document.querySelectorAll("#remap-channel-rows .remap-master-ch")];
+  const masterChannels = masterSelects.map(s => s.value);
+  const outputChannels = isMono ? ["mono"] : ["front-left", "front-right"];
   const payload = {
     name: document.getElementById("remap-name").value.trim(),
     kind: "remap",
@@ -625,7 +610,7 @@ function wireUpEvents() {
   document.getElementById("sinks-open-settings").onclick = (e) => { e.preventDefault(); modalSinks.hide(); openSettingsModal(); };
   document.getElementById("form-sink-combine").onsubmit = createCombineSink;
   document.getElementById("form-sink-remap").onsubmit = createRemapSink;
-  document.getElementById("remap-add-channel").onclick = () => addRemapChannelRow();
+  document.querySelectorAll("input[name='remap-mode']").forEach(r => r.onchange = renderRemapRows);
   initRemapRows();
 
   document.getElementById("menu-wizard").onclick = (e) => { e.preventDefault(); openWizard(); };
