@@ -94,15 +94,11 @@ def start_pulseaudio(log_path=None, wait_s: int = 10) -> bool:
         subprocess.run(
             [
                 "pulseaudio",
+                "--system",
                 "--daemonize=yes",
                 "--exit-idle-time=-1",
                 "--disallow-module-loading=0",
-                # Do NOT use --system: system mode restricts socket access to
-                # the pulse-access group, so root cannot connect via pactl.
-                # Instead run as a regular (root) daemon with an explicit
-                # runtime dir — pactl finds it via _PA_SERVER which points to
-                # the same path, giving us full access without group juggling.
-                f"--runtime-path={runtime_path}",
+                "--disallow-exit=0",
                 logsink,
             ],
             capture_output=True,
@@ -114,7 +110,18 @@ def start_pulseaudio(log_path=None, wait_s: int = 10) -> bool:
         logger.error("pulseaudio binary not found in image")
         return False
 
+    runtime_path = _os.environ.get("PULSE_RUNTIME_PATH", "/run/pulse")
+    socket_path = f"{runtime_path}/native"
     for _ in range(wait_s * 2):
+        # In --system mode PulseAudio creates the socket owned by the
+        # pulse-access group, which blocks root from connecting. As soon as
+        # the socket file appears we chmod it to 0777 so pactl (running as
+        # root) can reach the daemon without needing group membership.
+        if _os.path.exists(socket_path):
+            try:
+                _os.chmod(socket_path, 0o777)
+            except OSError as e:
+                logger.warning("Could not chmod PA socket: %s", e)
         if pulse_available():
             return True
         time.sleep(0.5)
