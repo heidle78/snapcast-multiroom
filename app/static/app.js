@@ -774,6 +774,7 @@ function wireUpEvents() {
 
   document.getElementById("tab-players").onclick = (e) => { e.preventDefault(); switchView("players"); };
   document.getElementById("tab-logs").onclick = (e) => { e.preventDefault(); switchView("logs"); };
+  document.getElementById("tab-channels").onclick = (e) => { e.preventDefault(); switchView("channels"); };
   document.getElementById("empty-wizard-link").onclick = (e) => { e.preventDefault(); openWizard(); };
 
   document.getElementById("menu-system-settings").onclick = (e) => { e.preventDefault(); openSettingsModal(); };
