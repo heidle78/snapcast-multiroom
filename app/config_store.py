@@ -1,9 +1,9 @@
-"""YAML-backed persistence for player configs and global settings."""
+"""YAML-backed persistence for player configs, sinks, and global settings."""
 from pathlib import Path
 
 import yaml
 
-from models import PlayerConfig, Settings
+from models import CustomSinkConfig, PlayerConfig, Settings
 
 
 class ConfigStore:
@@ -12,6 +12,7 @@ class ConfigStore:
         self.config_path.mkdir(parents=True, exist_ok=True)
         self.players_file = self.config_path / "players.yaml"
         self.settings_file = self.config_path / "settings.yaml"
+        self.sinks_file = self.config_path / "sinks.yaml"
 
     def load_players(self) -> list[PlayerConfig]:
         if not self.players_file.exists():
@@ -31,3 +32,13 @@ class ConfigStore:
 
     def save_settings(self, settings: Settings) -> None:
         self.settings_file.write_text(yaml.safe_dump(settings.model_dump(), sort_keys=False))
+
+    def load_sinks(self) -> list[CustomSinkConfig]:
+        if not self.sinks_file.exists():
+            return []
+        data = yaml.safe_load(self.sinks_file.read_text()) or []
+        return [CustomSinkConfig(**item) for item in data]
+
+    def save_sinks(self, sinks: list[CustomSinkConfig]) -> None:
+        data = [s.model_dump() for s in sinks]
+        self.sinks_file.write_text(yaml.safe_dump(data, sort_keys=False))

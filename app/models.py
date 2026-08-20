@@ -44,3 +44,26 @@ class PlayerUpdate(BaseModel):
 class Settings(BaseModel):
     default_snapserver_host: str = ""
     default_snapserver_port: int = 1704
+    # "alsa" (default, matches existing installs) or "pulse" (unlocks Custom
+    # Sinks: combining multiple outputs, remapping multi-channel devices).
+    backend: str = "alsa"
+    default_buffer_time_ms: int = 80
+    default_fragments: int = 4
+    default_latency_ms: int = 0
+
+
+class CustomSinkConfig(BaseModel):
+    """A PulseAudio virtual sink (combine or remap), only usable when backend=pulse."""
+
+    name: str = Field(..., description="Sink name, letters/numbers/underscore only")
+    kind: str = Field(..., description="'combine' or 'remap'")
+    description: str = ""
+    # combine
+    slaves: list[str] = Field(default_factory=list, description="Sink names to combine (kind=combine)")
+    # remap
+    master: Optional[str] = Field(default=None, description="Source sink to remap from (kind=remap)")
+    channels: Optional[int] = Field(default=None, description="Output channel count (kind=remap)")
+    channel_map: Optional[str] = Field(default=None, description="e.g. 'front-left,front-right' (kind=remap)")
+    master_channel_map: Optional[str] = Field(
+        default=None, description="Which master channels to pull from, same length as channel_map"
+    )

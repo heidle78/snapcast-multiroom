@@ -38,10 +38,11 @@ class PlayerRuntime:
 
 
 class PlayerManager:
-    def __init__(self, log_path: Path, default_host: str, default_port: int):
+    def __init__(self, log_path: Path, default_host: str, default_port: int, backend: str = "alsa"):
         self.log_path = log_path
         self.default_host = default_host
         self.default_port = default_port
+        self.backend = backend  # "alsa" or "pulse"
         self.players: dict[str, PlayerRuntime] = {}
 
     # -- registration -----------------------------------------------------
@@ -61,7 +62,13 @@ class PlayerManager:
             raise ValueError(
                 "No Snapserver host configured - set SNAPSERVER_HOST or a per-player host"
             )
-        player_opt = f"alsa:buffer_time={config.buffer_time_ms},fragments={config.fragments}"
+        if self.backend == "pulse":
+            # PulseAudio backend: device selection is still via --soundcard
+            # (there it names a sink instead of an hw:X,Y string);
+            # fragments is an ALSA-only concept and doesn't apply here.
+            player_opt = f"pulse:buffer_time={config.buffer_time_ms}"
+        else:
+            player_opt = f"alsa:buffer_time={config.buffer_time_ms},fragments={config.fragments}"
         cmd = [
             "snapclient",
             "-h", host,

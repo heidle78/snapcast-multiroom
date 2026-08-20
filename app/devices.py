@@ -5,9 +5,19 @@ import subprocess
 
 logger = logging.getLogger("multiroom.devices")
 
+# The "id" token aplay prints before each bracketed name (e.g. "PCH" in
+# "card 0: PCH [HDA Intel PCH]") is conventionally a single word, but on a
+# lot of real hardware it isn't (e.g. "card 0: Generic [HD-Audio Generic],
+# device 0: ALC1220 Analog [ALC1220 Analog]" - "ALC1220 Analog" has a
+# space). A previous version of this regex required that id to be exactly
+# one \S+ token, which made it silently fail to match - and therefore
+# silently drop the device from discovery - on any hardware like that. We
+# don't use card_id/device_id for anything (only the card/device numbers
+# and the bracketed *_name), so match everything up to the last bracket on
+# each side greedily instead of trying to isolate that token.
 CARD_RE = re.compile(
-    r"^card (?P<card>\d+): (?P<card_id>\S+) \[(?P<card_name>.*?)\], "
-    r"device (?P<device>\d+): (?P<device_id>\S+) \[(?P<device_name>.*?)\]$"
+    r"^card (?P<card>\d+): .*\[(?P<card_name>[^\]]*)\], "
+    r"device (?P<device>\d+): .*\[(?P<device_name>[^\]]*)\]$"
 )
 
 
@@ -64,3 +74,34 @@ def list_alsa_devices() -> list[dict]:
         }
     )
     return devices
+
+
+def sanitize_sink_name(card: str, device: str) -> str:
+    """Deterministic PulseAudio sink name for a given ALSA hw:card,device."""
+    return f"hw_{card}_{device}"
+
+
+def list_output_targets(backend: str) -> list[dict]:
+    """Unified device list for the Add Player dropdown.
+
+    - backend == "alsa": same as list_alsa_devices() (raw hw devices).
+    - backend == "pulse": PulseAudio sinks - hardware-backed ones (kept in
+      sync with the detected ALSA devices) plus any custom combine/remap
+      sinks the user created. Delegates to pulse.py to avoid a circular
+      import (pulse.py itself calls list_alsa_devices() from here).
+    """
+    if backend == "pulse":
+        from pulse import list_sinks  # local import: avoids import cycle
+
+        return [
+            {
+                "id": s["name"],
+                "hw": s["name"],
+                "plughw": s["name"],
+                "card": None,
+                "device": None,
+                "label": f"{s['description']} [{s['kind']}]" if s.get("description") else s["name"],
+            }
+            for s in list_sinks()
+        ]
+    return list_alsa_devices()

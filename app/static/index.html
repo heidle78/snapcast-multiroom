@@ -1,108 +1,383 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-bs-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Snapcast Multiroom Controller</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <h1>🔊 Snapcast Multiroom Controller</h1>
-  <div class="header-actions">
-    <button id="btn-settings" class="btn btn-secondary">Einstellungen</button>
-    <button id="btn-add" class="btn btn-primary">+ Player hinzufügen</button>
-  </div>
-</header>
 
-<main>
-  <div id="empty-state" class="empty-state hidden">
-    Noch keine Player konfiguriert. Klicke oben rechts auf "Player hinzufügen".
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+  <div class="container-fluid px-4">
+    <span class="navbar-brand mb-0 h1"><i class="fa-solid fa-volume-high me-2"></i>Snapcast Multiroom</span>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="tab-players" data-view="players">
+            <i class="fa-solid fa-house me-1"></i>Player
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="tab-logs" data-view="logs">
+            <i class="fa-solid fa-file-lines me-1"></i>Logs
+          </a>
+        </li>
+      </ul>
+      <ul class="navbar-nav align-items-lg-center gap-lg-2">
+        <li class="nav-item">
+          <span id="backend-pill" class="badge text-bg-secondary">Backend: -</span>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="fa-solid fa-book me-1"></i>Dokumentation
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="/docs" target="_blank"><i class="fa-solid fa-plug me-2"></i>API-Doku (Swagger)</a></li>
+            <li><a class="dropdown-item" href="/redoc" target="_blank"><i class="fa-solid fa-book-open me-2"></i>API-Doku (ReDoc)</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="fa-solid fa-gear me-1"></i>Einstellungen
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#" id="menu-system-settings"><i class="fa-solid fa-sliders me-2"></i>System-Einstellungen</a></li>
+            <li><a class="dropdown-item" href="#" id="menu-sinks"><i class="fa-solid fa-diagram-project me-2"></i>PulseAudio Custom Sinks</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#" id="menu-wizard"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Setup-Assistent</a></li>
+            <li><a class="dropdown-item" href="#" id="menu-diagnostics"><i class="fa-solid fa-stethoscope me-2"></i>Diagnose exportieren</a></li>
+          </ul>
+        </li>
+        <li class="nav-item">
+          <button id="btn-add" class="btn btn-primary btn-sm ms-lg-2">
+            <i class="fa-solid fa-plus me-1"></i>Player hinzufügen
+          </button>
+        </li>
+      </ul>
+    </div>
   </div>
-  <div id="player-grid" class="player-grid"></div>
+</nav>
+
+<main class="container-fluid px-4 py-4">
+
+  <!-- ================= Players view ================= -->
+  <section id="view-players">
+    <div id="empty-state" class="text-center text-body-secondary border border-dashed rounded-4 py-5 d-none">
+      <i class="fa-solid fa-inbox fa-2x mb-3 d-block"></i>
+      Noch keine Player konfiguriert.<br>
+      Klicke oben rechts auf <strong>„Player hinzufügen“</strong> oder starte den <a href="#" id="empty-wizard-link">Setup-Assistenten</a>.
+    </div>
+    <div id="player-grid" class="row g-3"></div>
+  </section>
+
+  <!-- ================= Logs view ================= -->
+  <section id="view-logs" class="d-none">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex flex-wrap align-items-center gap-2">
+        <i class="fa-solid fa-file-lines me-1"></i><strong>Logs</strong>
+        <select id="log-filter-player" class="form-select form-select-sm w-auto ms-lg-2">
+          <option value="">Alle Player</option>
+        </select>
+        <input type="search" id="log-filter-search" class="form-control form-control-sm w-auto" placeholder="Suchen…" style="min-width: 200px;">
+        <select id="log-filter-lines" class="form-select form-select-sm w-auto">
+          <option value="200">200 Zeilen</option>
+          <option value="500" selected>500 Zeilen</option>
+          <option value="1000">1000 Zeilen</option>
+        </select>
+        <div class="form-check form-switch ms-2">
+          <input class="form-check-input" type="checkbox" id="log-auto-refresh" checked>
+          <label class="form-check-label small" for="log-auto-refresh">Auto-Aktualisierung</label>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary ms-auto" id="btn-logs-refresh">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <pre id="log-view-content" class="log-view m-0 rounded-bottom"></pre>
+      </div>
+    </div>
+  </section>
 </main>
 
-<!-- Add / Edit Player Modal -->
-<div id="modal-player" class="modal hidden">
-  <div class="modal-content">
-    <h2 id="modal-title">Player hinzufügen</h2>
-    <form id="form-player">
-      <label>Name
-        <input type="text" id="f-name" required pattern="[A-Za-z0-9_\-]+" placeholder="z.B. Kueche">
-      </label>
-      <label>Audio-Gerät (ALSA)
-        <input type="text" id="f-device" list="device-list" required placeholder="z.B. plughw:1,0">
-        <datalist id="device-list"></datalist>
-      </label>
-      <div class="form-row">
-        <label>Snapserver Host (optional, sonst Standard)
-          <input type="text" id="f-host" placeholder="leer = Standard verwenden">
-        </label>
-        <label>Snapserver Port
-          <input type="number" id="f-port" placeholder="leer = Standard">
-        </label>
+<!-- ================= Add / Edit Player Modal ================= -->
+<div class="modal fade" id="modal-player" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-title"><i class="fa-solid fa-plus me-2"></i>Player hinzufügen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="form-row">
-        <label>Buffer Time (ms)
-          <input type="number" id="f-buffer" value="80" min="10">
-        </label>
-        <label>Fragments
-          <input type="number" id="f-fragments" value="4" min="2">
-        </label>
-      </div>
-      <div class="form-row">
-        <label>Latenz-Ausgleich (ms)
-          <input type="number" id="f-latency" value="0" min="0" title="Kompensiert Verzögerung von Verstärker/Lautsprechern">
-        </label>
-        <label>Sample Format (optional)
-          <input type="text" id="f-sampleformat" placeholder="z.B. 48000:16:2">
-        </label>
-      </div>
-      <label>Zusätzliche snapclient-Argumente (optional)
-        <input type="text" id="f-extra" placeholder="frei, z.B. --mixer hardware">
-      </label>
-      <label class="checkbox-row">
-        <input type="checkbox" id="f-enabled" checked>
-        Automatisch starten
-      </label>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="btn-cancel">Abbrechen</button>
-        <button type="submit" class="btn btn-primary" id="btn-save">Speichern</button>
-      </div>
-    </form>
-  </div>
-</div>
+      <form id="form-player">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Name</label>
+              <input type="text" class="form-control" id="f-name" required pattern="[A-Za-z0-9_\-]+" placeholder="z.B. Kueche">
+              <div class="form-text">Nur Buchstaben, Zahlen, „_“ und „-“. Wird als Snapcast-Host-ID verwendet.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Audio-Ausgabe</label>
+              <select class="form-select" id="f-device" required></select>
+              <div class="form-text" id="f-device-hint">ALSA-Gerät auf diesem Host.</div>
+            </div>
 
-<!-- Settings Modal -->
-<div id="modal-settings" class="modal hidden">
-  <div class="modal-content">
-    <h2>Einstellungen</h2>
-    <form id="form-settings">
-      <label>Standard Snapserver Host
-        <input type="text" id="s-host" placeholder="z.B. 192.168.1.10">
-      </label>
-      <label>Standard Snapserver Port
-        <input type="number" id="s-port" value="1704">
-      </label>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="btn-settings-cancel">Abbrechen</button>
-        <button type="submit" class="btn btn-primary">Speichern</button>
-      </div>
-    </form>
-  </div>
-</div>
+            <div class="col-md-6">
+              <label class="form-label">Snapserver Host</label>
+              <input type="text" class="form-control" id="f-host" placeholder="leer = Standard verwenden">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Snapserver Port</label>
+              <input type="number" class="form-control" id="f-port" placeholder="leer = Standard">
+            </div>
 
-<!-- Log Viewer Modal -->
-<div id="modal-logs" class="modal hidden">
-  <div class="modal-content modal-wide">
-    <h2 id="log-title">Logs</h2>
-    <pre id="log-content" class="log-view"></pre>
-    <div class="modal-actions">
-      <button type="button" class="btn btn-secondary" id="btn-logs-close">Schließen</button>
+            <div class="col-md-4">
+              <label class="form-label">Buffer Time (ms)</label>
+              <input type="number" class="form-control" id="f-buffer" value="80" min="10">
+            </div>
+            <div class="col-md-4" id="f-fragments-group">
+              <label class="form-label">Fragments</label>
+              <input type="number" class="form-control" id="f-fragments" value="4" min="2">
+              <div class="form-text">Nur bei ALSA-Backend relevant.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Latenz-Ausgleich (ms)</label>
+              <input type="number" class="form-control" id="f-latency" value="0" min="0">
+              <div class="form-text">Kompensiert Verzögerung von Verstärker/Lautsprechern.</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Sample Format (optional)</label>
+              <input type="text" class="form-control" id="f-sampleformat" placeholder="z.B. 48000:16:2">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Zusätzliche snapclient-Argumente</label>
+              <input type="text" class="form-control" id="f-extra" placeholder="frei, z.B. --mixer hardware">
+            </div>
+
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="f-enabled" checked>
+                <label class="form-check-label" for="f-enabled">Automatisch starten</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" id="btn-save"><i class="fa-solid fa-check me-1"></i>Speichern</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
+<!-- ================= System Settings Modal ================= -->
+<div class="modal fade" id="modal-settings" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa-solid fa-sliders me-2"></i>System-Einstellungen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="form-settings">
+        <div class="modal-body">
+          <label class="form-label">Audio-Backend</label>
+          <select class="form-select mb-1" id="s-backend">
+            <option value="alsa">ALSA (direkt, ein Ausgang je Player)</option>
+            <option value="pulse">PulseAudio (ermöglicht Custom Sinks)</option>
+          </select>
+          <div class="form-text mb-3" id="s-backend-hint"></div>
+
+          <label class="form-label">Standard Snapserver Host</label>
+          <input type="text" class="form-control mb-3" id="s-host" placeholder="z.B. 192.168.1.10">
+
+          <label class="form-label">Standard Snapserver Port</label>
+          <input type="number" class="form-control mb-3" id="s-port" value="1704">
+
+          <div class="row g-3">
+            <div class="col-4">
+              <label class="form-label">Buffer (ms)</label>
+              <input type="number" class="form-control" id="s-buffer" value="80">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Fragments</label>
+              <input type="number" class="form-control" id="s-fragments" value="4">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Latenz (ms)</label>
+              <input type="number" class="form-control" id="s-latency" value="0">
+            </div>
+          </div>
+          <div class="form-text mt-2">Werden als Vorbelegung für neue Player verwendet.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check me-1"></i>Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Custom Sinks Modal ================= -->
+<div class="modal fade" id="modal-sinks" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa-solid fa-diagram-project me-2"></i>PulseAudio Custom Sinks</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="sinks-disabled-alert" class="alert alert-warning d-none">
+          <i class="fa-solid fa-triangle-exclamation me-1"></i>
+          Custom Sinks benötigen das PulseAudio-Backend.
+          <a href="#" id="sinks-open-settings" class="alert-link">Jetzt in System-Einstellungen umschalten</a>.
+        </div>
+
+        <div id="sinks-panel">
+          <h6 class="text-body-secondary text-uppercase small mb-2">Vorhandene Sinks</h6>
+          <div class="table-responsive mb-4">
+            <table class="table table-sm align-middle">
+              <thead><tr><th>Name</th><th>Art</th><th>Beschreibung</th><th></th></tr></thead>
+              <tbody id="sinks-table-body"></tbody>
+            </table>
+          </div>
+
+          <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-combine">
+              <i class="fa-solid fa-object-group me-1"></i>Combine (mehrere Ausgänge)</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-remap">
+              <i class="fa-solid fa-shuffle me-1"></i>Remap (Kanäle)</button></li>
+          </ul>
+          <div class="tab-content border border-top-0 rounded-bottom p-3">
+            <div class="tab-pane fade show active" id="tab-combine">
+              <form id="form-sink-combine" class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label">Name</label>
+                  <input type="text" class="form-control" id="combine-name" required pattern="[A-Za-z0-9_]+" placeholder="z.B. wohnzimmer_kueche">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Beschreibung</label>
+                  <input type="text" class="form-control" id="combine-desc" placeholder="z.B. Wohnzimmer + Küche">
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Quell-Sinks (mind. 2 auswählen)</label>
+                  <select class="form-select" id="combine-slaves" multiple size="5"></select>
+                </div>
+                <div class="col-12 text-end">
+                  <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Combine-Sink anlegen</button>
+                </div>
+              </form>
+            </div>
+            <div class="tab-pane fade" id="tab-remap">
+              <form id="form-sink-remap" class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label">Name</label>
+                  <input type="text" class="form-control" id="remap-name" required pattern="[A-Za-z0-9_]+" placeholder="z.B. links_only">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Beschreibung</label>
+                  <input type="text" class="form-control" id="remap-desc" placeholder="z.B. Nur linker Kanal">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Quell-Sink (Master)</label>
+                  <select class="form-select" id="remap-master"></select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Anzahl Ausgangskanäle</label>
+                  <input type="number" class="form-control" id="remap-channels" value="2" min="1" max="8">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Ausgangs-Kanalzuordnung</label>
+                  <input type="text" class="form-control" id="remap-channelmap" placeholder="z.B. front-left,front-right oder mono">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Quell-Kanalzuordnung (optional)</label>
+                  <input type="text" class="form-control" id="remap-mastermap" placeholder="z.B. front-left">
+                </div>
+                <div class="col-12 text-end">
+                  <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Remap-Sink anlegen</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Setup Wizard Modal ================= -->
+<div class="modal fade" id="modal-wizard" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Setup-Assistent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="progress mb-4" style="height: 4px;">
+          <div class="progress-bar" id="wizard-progress" style="width: 25%;"></div>
+        </div>
+
+        <div class="wizard-step" data-step="1">
+          <h6>1. Willkommen</h6>
+          <p class="text-body-secondary">Dieser Assistent führt dich einmalig durch die Grundeinrichtung: Audio-Backend wählen, Snapserver hinterlegen und ggf. den ersten Player anlegen.</p>
+        </div>
+
+        <div class="wizard-step d-none" data-step="2">
+          <h6>2. Audio-Backend</h6>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="wizard-backend" id="wizard-backend-alsa" value="alsa" checked>
+            <label class="form-check-label" for="wizard-backend-alsa"><strong>ALSA</strong> — einfach, ein Ausgang je Player.</label>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="radio" name="wizard-backend" id="wizard-backend-pulse" value="pulse">
+            <label class="form-check-label" for="wizard-backend-pulse"><strong>PulseAudio</strong> — ermöglicht Custom Sinks (mehrere Ausgänge kombinieren, Kanäle remappen).</label>
+          </div>
+        </div>
+
+        <div class="wizard-step d-none" data-step="3">
+          <h6>3. Snapserver</h6>
+          <div class="row g-3">
+            <div class="col-8">
+              <label class="form-label">Host / IP</label>
+              <input type="text" class="form-control" id="wizard-host" placeholder="z.B. 192.168.1.10">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Port</label>
+              <input type="number" class="form-control" id="wizard-port" value="1704">
+            </div>
+          </div>
+        </div>
+
+        <div class="wizard-step d-none" data-step="4">
+          <h6>4. Fertig</h6>
+          <p class="text-body-secondary">Einstellungen werden gespeichert. Player und Custom Sinks kannst du danach jederzeit über „+ Player hinzufügen“ bzw. „PulseAudio Custom Sinks“ anlegen.</p>
+          <div id="wizard-summary" class="small"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary d-none" id="wizard-back">Zurück</button>
+        <button type="button" class="btn btn-primary" id="wizard-next">Weiter</button>
+        <button type="button" class="btn btn-success d-none" id="wizard-finish"><i class="fa-solid fa-check me-1"></i>Übernehmen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>
