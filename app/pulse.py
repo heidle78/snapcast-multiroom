@@ -56,10 +56,13 @@ def _run(args: list[str], timeout: int = PACTL_TIMEOUT) -> subprocess.CompletedP
     fold both into a synthetic failed CompletedProcess here once instead of
     requiring every caller to guard against it individually.
     """
-    # Inject --server for every pactl call so root inside the container can
-    # reach the PulseAudio --system daemon regardless of session-bus state.
+    # In --system mode PulseAudio authenticates clients via a cookie file
+    # owned by the pulse user. Running pactl as root bypasses the cookie
+    # lookup and gets "Access denied". We use `su pulse -s /bin/sh -c`
+    # to run pactl as the pulse user who owns the cookie.
     if args and args[0] == "pactl":
-        args = ["pactl", "--server", _PA_SERVER] + args[1:]
+        cmd = " ".join(f"'{a}'" for a in (["pactl", "--server", _PA_SERVER] + args[1:]))
+        args = ["su", "pulse", "-s", "/bin/sh", "-c", cmd]
     try:
         return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
     except FileNotFoundError:
@@ -90,17 +93,13 @@ def start_pulseaudio(log_path=None, wait_s: int = 10) -> bool:
 
     logsink = f"--log-target=file:{log_path}/pulseaudio.log" if log_path else "--log-target=stderr"
     runtime_path = _os.environ.get("PULSE_RUNTIME_PATH", "/run/pulse")
+    pa_cmd = (
+        f"pulseaudio --system --daemonize=yes --exit-idle-time=-1 "
+        f"--disallow-module-loading=0 --disallow-exit=0 {logsink}"
+    )
     try:
         subprocess.run(
-            [
-                "pulseaudio",
-                "--system",
-                "--daemonize=yes",
-                "--exit-idle-time=-1",
-                "--disallow-module-loading=0",
-                "--disallow-exit=0",
-                logsink,
-            ],
+            ["su", "pulse", "-s", "/bin/sh", "-c", pa_cmd],
             capture_output=True,
             text=True,
             timeout=10,
