@@ -25,20 +25,16 @@ COPY app/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ /app/
+# auth-anonymous=1 lets root use pactl without pulse-access group membership
+COPY docker/pulse-system.pa /etc/pulse/system.pa
 
 ENV CONFIG_PATH=/app/config \
     LOG_PATH=/app/logs \
     WEB_PORT=8098 \
     LOG_LEVEL=info \
-    PULSE_RUNTIME_PATH=/run/pulse
+    PULSE_RUNTIME_PATH=/run/pulse \
+    PULSE_SERVER=unix:/run/pulse/native
 
-# Pin the PulseAudio socket/cookie location explicitly via
-# PULSE_RUNTIME_PATH above, inherited by every process in the container
-# (the FastAPI app, its pactl calls, and snapclient's own libpulse-based
-# "pulse" player backend). Alpine's build-time default for this path isn't
-# guaranteed, and --system mode has no per-user session to autodiscover -
-# pinning it here means server and clients always agree on where to find
-# each other without any per-call plumbing.
 RUN mkdir -p /run/pulse
 
 VOLUME ["/app/config", "/app/logs"]
