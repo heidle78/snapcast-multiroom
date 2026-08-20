@@ -617,17 +617,40 @@ const PA_CHANNEL_DEFS = [
   { ch: "side-right",   label: "Side Right",   icon: "fa-arrow-right",      color: "secondary", pos: "Kanal 8" },
 ];
 
+const CH_LABELS_KEY = "snapcast_ch_labels";
+
+function loadChLabels() {
+  try { return JSON.parse(localStorage.getItem(CH_LABELS_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function saveChLabel(ch, label) {
+  const labels = loadChLabels();
+  if (label.trim()) labels[ch] = label.trim();
+  else delete labels[ch];
+  localStorage.setItem(CH_LABELS_KEY, JSON.stringify(labels));
+}
+
 function renderChannelTestView() {
   const grid = document.getElementById("channel-test-grid");
   if (!grid) return;
+  const labels = loadChLabels();
+
   grid.innerHTML = PA_CHANNEL_DEFS.map(c => `
     <div class="col-sm-6 col-md-4 col-lg-3">
       <div class="card h-100 text-center border-${c.color}">
-        <div class="card-body d-flex flex-column align-items-center justify-content-center gap-2 py-4">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center gap-2 py-3">
           <div class="fs-1 text-${c.color}"><i class="fa-solid ${c.icon}"></i></div>
           <div class="fw-semibold">${c.label}</div>
           <div class="small text-body-secondary">${c.pos}</div>
-          <button class="btn btn-outline-${c.color} btn-sm mt-2 ch-test-btn" data-ch="${c.ch}">
+          <div class="w-100 px-1">
+            <input type="text" class="form-control form-control-sm text-center ch-room-label"
+              data-ch="${c.ch}"
+              value="${escapeHtml(labels[c.ch] || "")}"
+              placeholder="Zimmer eingeben…"
+              title="Eigene Bezeichnung für diesen Kanal">
+          </div>
+          <button class="btn btn-outline-${c.color} btn-sm ch-test-btn" data-ch="${c.ch}">
             <i class="fa-solid fa-volume-high me-1"></i>Testen
           </button>
         </div>
@@ -635,6 +658,12 @@ function renderChannelTestView() {
     </div>
   `).join("");
 
+  // Save label on change
+  grid.querySelectorAll(".ch-room-label").forEach(input => {
+    input.onchange = () => saveChLabel(input.dataset.ch, input.value);
+  });
+
+  // Test tone buttons
   grid.querySelectorAll(".ch-test-btn").forEach(btn => {
     btn.onclick = async () => {
       const ch = btn.dataset.ch;
