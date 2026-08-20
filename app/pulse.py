@@ -225,32 +225,80 @@ def list_sinks() -> list[dict]:
 # -- hardware sink sync -----------------------------------------------------
 
 def sync_hardware_sinks() -> None:
-    """Ensure every detected ALSA playback device has a matching PulseAudio sink."""
+    """Ensure every detected ALSA playback device has a matching PulseAudio sink.
+
+    For multi-channel USB DACs (like 8-channel surround devices) module-alsa-sink
+    fails because it cannot negotiate the surround format. We use module-alsa-card
+    instead which loads the card with all its profiles (including analog-surround-71)
+    and creates named sinks automatically — the same approach Sendspin uses.
+    """
     if not pulse_available():
         logger.warning("sync_hardware_sinks: PulseAudio not available, skipping")
         return
 
-    existing = {s["name"] for s in _list_short_sinks()}
+    # Check which cards are already loaded via module-alsa-card
+    modules = _list_short_modules()
+    loaded_cards = {
+        re.search(r"device_id=(\S+)", m["argument"]).group(1)
+        for m in modules
+        if m["name"] == "module-alsa-card" and "device_id=" in m["argument"]
+    }
+
+    existing_sinks = {s["name"] for s in _list_short_sinks()}
+
     for dev in list_alsa_devices():
-        if dev.get("card") is None:  # skip the generic "default" fallback entry
+        if dev.get("card") is None:
             continue
-        sink_name = sanitize_sink_name(dev["card"], dev["device"])
-        if sink_name in existing:
+        card_id = dev["card"]
+        if card_id in loaded_cards:
             continue
+
+        # Try module-alsa-card first (handles multi-channel/surround devices)
         result = _run(
             [
                 "pactl",
                 "load-module",
-                "module-alsa-sink",
-                f"device={dev['hw']}",
-                f"sink_name={sink_name}",
-                f"sink_properties=device.description={_pulse_prop_safe(dev['label'])}",
+                "module-alsa-card",
+                f"device_id={card_id}",
+                f"name=card_{card_id}",
+                "profile=output:analog-surround-71",
             ]
         )
-        if result.returncode != 0:
-            logger.warning("Failed to create hardware sink %s: %s", sink_name, result.stderr.strip())
-        else:
-            logger.info("Created PulseAudio hardware sink %s (%s)", sink_name, dev["hw"])
+        if result.returncode == 0:
+            logger.info("Created PulseAudio card sink for card %s (surround-71)", card_id)
+            continue
+
+        # Fallback: try default profile via module-alsa-card
+        result = _run(
+            [
+                "pactl",
+                "load-module",
+                "module-alsa-card",
+                f"device_id={card_id}",
+                f"name=card_{card_id}",
+            ]
+        )
+        if result.returncode == 0:
+            logger.info("Created PulseAudio card sink for card %s (default profile)", card_id)
+            continue
+
+        # Last resort: module-alsa-sink with plughw for format conversion
+        sink_name = sanitize_sink_name(dev["card"], dev["device"])
+        if sink_name not in existing_sinks:
+            result = _run(
+                [
+                    "pactl",
+                    "load-module",
+                    "module-alsa-sink",
+                    f"device={dev['plughw']}",
+                    f"sink_name={sink_name}",
+                    f"sink_properties=device.description={_pulse_prop_safe(dev['label'])}",
+                ]
+            )
+            if result.returncode != 0:
+                logger.warning("Failed to create hardware sink %s: %s", sink_name, result.stderr.strip())
+            else:
+                logger.info("Created PulseAudio hardware sink %s (%s)", sink_name, dev["plughw"])
 
 
 # -- custom sinks -------------------------------------------------------
