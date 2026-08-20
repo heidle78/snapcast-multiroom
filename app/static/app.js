@@ -460,17 +460,18 @@ async function createCombineSink(ev) {
   }
 }
 
-// PulseAudio channel names with human-readable labels (matches Sendspin)
+// PulseAudio channel names — ordered to match ICUSBAUDIO7D hardware channel map:
+// front-left, front-right, rear-left, rear-right, front-center, lfe, side-left, side-right
 const PA_CHANNELS = [
-  { value: "front-left",   label: "Front Left"   },
-  { value: "front-right",  label: "Front Right"  },
-  { value: "front-center", label: "Front Center" },
-  { value: "lfe",          label: "LFE (Subwoofer)" },
-  { value: "rear-left",    label: "Rear Left"    },
-  { value: "rear-right",   label: "Rear Right"   },
-  { value: "side-left",    label: "Side Left"    },
-  { value: "side-right",   label: "Side Right"   },
-  { value: "mono",         label: "Mono"         },
+  { value: "front-left",   label: "Front Left   (Ausgang 1 L)" },
+  { value: "front-right",  label: "Front Right  (Ausgang 1 R)" },
+  { value: "rear-left",    label: "Rear Left    (Ausgang 2 L)" },
+  { value: "rear-right",   label: "Rear Right   (Ausgang 2 R)" },
+  { value: "front-center", label: "Front Center (Ausgang 3 L)" },
+  { value: "lfe",          label: "LFE          (Ausgang 3 R)" },
+  { value: "side-left",    label: "Side Left    (Ausgang 4 L)" },
+  { value: "side-right",   label: "Side Right   (Ausgang 4 R)" },
+  { value: "mono",         label: "Mono"                       },
 ];
 
 function channelSelect(selected, cls) {
@@ -606,15 +607,17 @@ async function finishWizard() {
 
 // ------------------------------------------------------------------ logs --
 // Channel definitions for the 8-channel DAC test page
+// Channel order matches ICUSBAUDIO7D actual hardware channel map:
+// front-left, front-right, rear-left, rear-right, front-center, lfe, side-left, side-right
 const PA_CHANNEL_DEFS = [
-  { ch: "front-left",   label: "Front Left",   icon: "fa-arrow-up-left",    color: "primary",   pos: "Kanal 1" },
-  { ch: "front-right",  label: "Front Right",  icon: "fa-arrow-up-right",   color: "primary",   pos: "Kanal 2" },
-  { ch: "front-center", label: "Front Center", icon: "fa-arrow-up",         color: "success",   pos: "Kanal 3" },
-  { ch: "lfe",          label: "LFE / Sub",    icon: "fa-wave-square",      color: "warning",   pos: "Kanal 4" },
-  { ch: "rear-left",    label: "Rear Left",    icon: "fa-arrow-down-left",  color: "info",      pos: "Kanal 5" },
-  { ch: "rear-right",   label: "Rear Right",   icon: "fa-arrow-down-right", color: "info",      pos: "Kanal 6" },
-  { ch: "side-left",    label: "Side Left",    icon: "fa-arrow-left",       color: "secondary", pos: "Kanal 7" },
-  { ch: "side-right",   label: "Side Right",   icon: "fa-arrow-right",      color: "secondary", pos: "Kanal 8" },
+  { ch: "front-left",   label: "Front Left",   icon: "fa-arrow-up-left",    color: "primary",   pos: "Ausgang 1 — Links" },
+  { ch: "front-right",  label: "Front Right",  icon: "fa-arrow-up-right",   color: "primary",   pos: "Ausgang 1 — Rechts" },
+  { ch: "rear-left",    label: "Rear Left",    icon: "fa-arrow-down-left",  color: "info",      pos: "Ausgang 2 — Links" },
+  { ch: "rear-right",   label: "Rear Right",   icon: "fa-arrow-down-right", color: "info",      pos: "Ausgang 2 — Rechts" },
+  { ch: "front-center", label: "Front Center", icon: "fa-arrow-up",         color: "success",   pos: "Ausgang 3 — Links" },
+  { ch: "lfe",          label: "LFE / Sub",    icon: "fa-wave-square",      color: "warning",   pos: "Ausgang 3 — Rechts" },
+  { ch: "side-left",    label: "Side Left",    icon: "fa-arrow-left",       color: "secondary", pos: "Ausgang 4 — Links" },
+  { ch: "side-right",   label: "Side Right",   icon: "fa-arrow-right",      color: "secondary", pos: "Ausgang 4 — Rechts" },
 ];
 
 const CH_LABELS_KEY = "snapcast_ch_labels";
