@@ -93,7 +93,9 @@ def start_pulseaudio(log_path=None, wait_s: int = 10) -> bool:
         subprocess.run(
             [
                 "pulseaudio",
-                "--system",
+                # No --system: run as root so ALSA devices (owned by gid 29/audio
+                # on the host) are accessible. --system forces pulse user which
+                # cannot open /dev/snd/* mounted from the host.
                 "--daemonize=yes",
                 "--exit-idle-time=-1",
                 "--disallow-module-loading=0",

@@ -27,6 +27,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ /app/
 # auth-anonymous=1 lets root use pactl without pulse-access group membership
 COPY docker/pulse-system.pa /etc/pulse/system.pa
+COPY docker/pulse-default.pa /etc/pulse/default.pa
 
 ENV CONFIG_PATH=/app/config \
     LOG_PATH=/app/logs \
