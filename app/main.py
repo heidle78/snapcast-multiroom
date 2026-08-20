@@ -300,6 +300,23 @@ async def test_sink(name: str):
     return {"ok": True, "sink": name}
 
 
+@app.post("/api/test/channel/{channel}")
+async def test_channel(channel: str):
+    """Play a test tone on a single PA channel of the hardware sink."""
+    allowed = {"front-left","front-right","front-center","lfe",
+               "rear-left","rear-right","side-left","side-right"}
+    if channel not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unknown channel: {channel}")
+    if settings.backend != "pulse":
+        raise HTTPException(status_code=400, detail="Requires PulseAudio backend")
+    import asyncio
+    loop = asyncio.get_event_loop()
+    ok = await loop.run_in_executor(None, pulse.play_channel_test, channel)
+    if not ok:
+        raise HTTPException(status_code=500, detail="paplay failed")
+    return {"ok": True, "channel": channel}
+
+
 @app.get("/api/diagnostics")
 async def get_diagnostics():
     """Downloadable text bundle: config (redacted), sinks, devices, recent logs."""

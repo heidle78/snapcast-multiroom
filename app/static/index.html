@@ -28,6 +28,11 @@
             <i class="fa-solid fa-file-lines me-1"></i>Logs
           </a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="tab-channels" data-view="channels">
+            <i class="fa-solid fa-sliders me-1"></i>Kanal-Test
+          </a>
+        </li>
       </ul>
       <ul class="navbar-nav align-items-lg-center gap-lg-2">
         <li class="nav-item">
@@ -74,6 +79,25 @@
       Klicke oben rechts auf <strong>„Player hinzufügen“</strong> oder starte den <a href="#" id="empty-wizard-link">Setup-Assistenten</a>.
     </div>
     <div id="player-grid" class="row g-3"></div>
+  </section>
+
+  <!-- ================= Channel test view ================= -->
+  <section id="view-channels" class="d-none">
+    <div class="card shadow-sm">
+      <div class="card-header">
+        <i class="fa-solid fa-sliders me-1"></i><strong>Kanal-Test</strong>
+        <span class="text-body-secondary ms-2 small">Jeden Kanal des 8-Kanal-DAC einzeln testen</span>
+      </div>
+      <div class="card-body">
+        <p class="text-body-secondary small mb-3">
+          Drücke einen Button um einen 1,5s Testton auf genau diesem Kanal abzuspielen.
+          So kannst du prüfen welcher physische Ausgang welchem Lautsprecher entspricht.
+        </p>
+        <div class="row g-3" id="channel-test-grid">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- ================= Logs view ================= -->
@@ -390,6 +414,6 @@
 <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/app.js?v=501e2357"></script>
+<script src="/static/app.js?v=6f453232"></script>
 </body>
 </html>

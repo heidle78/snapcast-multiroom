@@ -605,11 +605,63 @@ async function finishWizard() {
 }
 
 // ------------------------------------------------------------------ logs --
+// Channel definitions for the 8-channel DAC test page
+const PA_CHANNEL_DEFS = [
+  { ch: "front-left",   label: "Front Left",   icon: "fa-arrow-up-left",    color: "primary",   pos: "Kanal 1" },
+  { ch: "front-right",  label: "Front Right",  icon: "fa-arrow-up-right",   color: "primary",   pos: "Kanal 2" },
+  { ch: "front-center", label: "Front Center", icon: "fa-arrow-up",         color: "success",   pos: "Kanal 3" },
+  { ch: "lfe",          label: "LFE / Sub",    icon: "fa-wave-square",      color: "warning",   pos: "Kanal 4" },
+  { ch: "rear-left",    label: "Rear Left",    icon: "fa-arrow-down-left",  color: "info",      pos: "Kanal 5" },
+  { ch: "rear-right",   label: "Rear Right",   icon: "fa-arrow-down-right", color: "info",      pos: "Kanal 6" },
+  { ch: "side-left",    label: "Side Left",    icon: "fa-arrow-left",       color: "secondary", pos: "Kanal 7" },
+  { ch: "side-right",   label: "Side Right",   icon: "fa-arrow-right",      color: "secondary", pos: "Kanal 8" },
+];
+
+function renderChannelTestView() {
+  const grid = document.getElementById("channel-test-grid");
+  if (!grid) return;
+  grid.innerHTML = PA_CHANNEL_DEFS.map(c => `
+    <div class="col-sm-6 col-md-4 col-lg-3">
+      <div class="card h-100 text-center border-${c.color}">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center gap-2 py-4">
+          <div class="fs-1 text-${c.color}"><i class="fa-solid ${c.icon}"></i></div>
+          <div class="fw-semibold">${c.label}</div>
+          <div class="small text-body-secondary">${c.pos}</div>
+          <button class="btn btn-outline-${c.color} btn-sm mt-2 ch-test-btn" data-ch="${c.ch}">
+            <i class="fa-solid fa-volume-high me-1"></i>Testen
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join("");
+
+  grid.querySelectorAll(".ch-test-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const ch = btn.dataset.ch;
+      const icon = btn.querySelector("i");
+      btn.disabled = true;
+      icon.className = "fa-solid fa-spinner fa-spin me-1";
+      btn.childNodes[1].textContent = "Spielt…";
+      try {
+        await api(`/test/channel/${encodeURIComponent(ch)}`, { method: "POST" });
+      } catch (e) {
+        toast(`Kanal-Test fehlgeschlagen: ${e.message}`, true);
+      } finally {
+        btn.disabled = false;
+        icon.className = "fa-solid fa-volume-high me-1";
+        btn.childNodes[1].textContent = "Testen";
+      }
+    };
+  });
+}
+
 function switchView(view) {
   document.getElementById("view-players").classList.toggle("d-none", view !== "players");
   document.getElementById("view-logs").classList.toggle("d-none", view !== "logs");
+  document.getElementById("view-channels").classList.toggle("d-none", view !== "channels");
   document.getElementById("tab-players").classList.toggle("active", view === "players");
   document.getElementById("tab-logs").classList.toggle("active", view === "logs");
+  document.getElementById("tab-channels").classList.toggle("active", view === "channels");
 
   if (view === "logs") {
     refreshLogView();
@@ -617,6 +669,9 @@ function switchView(view) {
     logViewTimer = setInterval(() => {
       if (document.getElementById("log-auto-refresh").checked) refreshLogView();
     }, 3000);
+  } else if (view === "channels") {
+    renderChannelTestView();
+    if (logViewTimer) { clearInterval(logViewTimer); logViewTimer = null; }
   } else if (logViewTimer) {
     clearInterval(logViewTimer);
     logViewTimer = null;

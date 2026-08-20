@@ -516,3 +516,44 @@ def play_test_tone(sink_name: str, duration_ms: int = 1200) -> bool:
             _os.remove(tmp)
         except OSError:
             pass
+
+
+def play_channel_test(channel: str, duration_ms: int = 1500) -> bool:
+    """Play a test tone on a single named PA channel of the hardware sink.
+    
+    Uses paplay with --channel-map to route audio to exactly one channel
+    of the surround sink, so you can verify physical speaker wiring.
+    """
+    import tempfile
+    # Generate mono WAV, paplay will upmix via channel-map
+    wav = _generate_sine_wav(frequency=1000, duration_ms=duration_ms, channels=1)
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        f.write(wav)
+        tmp = f.name
+
+    # Find the hardware sink name
+    sinks = list_sinks()
+    hw_sink = next((s["name"] for s in sinks if s["kind"] == "hardware"), None)
+    if not hw_sink:
+        return False
+
+    try:
+        result = subprocess.run(
+            [
+                "paplay",
+                "--device", hw_sink,
+                "--channel-map", channel,
+                tmp,
+            ],
+            capture_output=True, text=True,
+            timeout=duration_ms / 1000 + 3
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logger.warning("play_channel_test failed: %s", e)
+        return False
+    finally:
+        try:
+            _os.remove(tmp)
+        except OSError:
+            pass
