@@ -88,15 +88,21 @@ def start_pulseaudio(log_path=None, wait_s: int = 10) -> bool:
     if pulse_available():
         return True
 
-    logsink = f"--log-target=file:{log_path}/pulseaudio.log" if log_path else "--log-target=syslog"
+    logsink = f"--log-target=file:{log_path}/pulseaudio.log" if log_path else "--log-target=stderr"
+    runtime_path = _os.environ.get("PULSE_RUNTIME_PATH", "/run/pulse")
     try:
         subprocess.run(
             [
                 "pulseaudio",
-                "--system",
                 "--daemonize=yes",
                 "--exit-idle-time=-1",
                 "--disallow-module-loading=0",
+                # Do NOT use --system: system mode restricts socket access to
+                # the pulse-access group, so root cannot connect via pactl.
+                # Instead run as a regular (root) daemon with an explicit
+                # runtime dir — pactl finds it via _PA_SERVER which points to
+                # the same path, giving us full access without group juggling.
+                f"--runtime-path={runtime_path}",
                 logsink,
             ],
             capture_output=True,
