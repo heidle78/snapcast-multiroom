@@ -105,11 +105,20 @@ class PlayerManager:
 
         logger.info("Starting player '%s': %s", rt.config.name, " ".join(cmd))
         rt.status = "starting"
+        # Pass PULSE_SERVER so snapclient finds the PA socket in pulse backend mode.
+        # os.environ already contains PULSE_SERVER (set in Dockerfile), but we
+        # pass it explicitly so it survives any future env-stripping.
+        import os as _os
+        spawn_env = _os.environ.copy()
+        if self.backend == "pulse":
+            pulse_runtime = _os.environ.get("PULSE_RUNTIME_PATH", "/run/pulse")
+            spawn_env.setdefault("PULSE_SERVER", f"unix:{pulse_runtime}/native")
         try:
             rt.process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                env=spawn_env,
             )
         except FileNotFoundError:
             rt.status = "error"

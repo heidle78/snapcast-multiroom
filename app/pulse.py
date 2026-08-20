@@ -88,6 +88,16 @@ def start_pulseaudio(log_path=None, wait_s: int = 10) -> bool:
     if pulse_available():
         return True
 
+    # Remove stale socket/pid from a previous (dead) daemon so PA starts cleanly
+    runtime_path = _os.environ.get("PULSE_RUNTIME_PATH", "/run/pulse")
+    for stale in ("native", "pid"):
+        p = f"{runtime_path}/{stale}"
+        if _os.path.exists(p):
+            try:
+                _os.remove(p)
+            except OSError:
+                pass
+
     logsink = f"--log-target=file:{log_path}/pulseaudio.log" if log_path else "--log-target=stderr"
     try:
         subprocess.run(
