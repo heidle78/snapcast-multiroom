@@ -34,6 +34,15 @@ class PulseError(Exception):
     pass
 
 
+# PulseAudio --system mode uses a fixed socket path. When running as root
+# inside the container pactl can't auto-discover it via the session bus, so
+# we point it there explicitly. PULSE_RUNTIME_PATH is set in the Dockerfile
+# and start_pulseaudio() starts the daemon with the same path, so all three
+# (daemon, pactl, snapclient) agree on the socket location.
+import os as _os
+_PA_SERVER = f"unix:{_os.environ.get('PULSE_RUNTIME_PATH', '/run/pulse')}/native"
+
+
 def _run(args: list[str], timeout: int = PACTL_TIMEOUT) -> subprocess.CompletedProcess:
     """Run a pactl/pulseaudio command, never raising.
 
@@ -47,6 +56,10 @@ def _run(args: list[str], timeout: int = PACTL_TIMEOUT) -> subprocess.CompletedP
     fold both into a synthetic failed CompletedProcess here once instead of
     requiring every caller to guard against it individually.
     """
+    # Inject --server for every pactl call so root inside the container can
+    # reach the PulseAudio --system daemon regardless of session-bus state.
+    if args and args[0] == "pactl":
+        args = ["pactl", "--server", _PA_SERVER] + args[1:]
     try:
         return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
     except FileNotFoundError:

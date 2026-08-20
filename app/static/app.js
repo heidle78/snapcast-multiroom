@@ -370,20 +370,45 @@ async function createCombineSink(ev) {
   }
 }
 
+// Stereo pair presets for 8-channel DACs (PulseAudio surround71 channel names)
+const REMAP_PAIRS = {
+  "1": { channel_map: "front-left,front-right",   master_channel_map: "front-left,front-right" },
+  "2": { channel_map: "front-left,front-right",   master_channel_map: "rear-left,rear-right" },
+  "3": { channel_map: "front-left,front-right",   master_channel_map: "side-left,side-right" },
+  "4": { channel_map: "front-left,front-right",   master_channel_map: "center,lfe" },
+};
+
+function onRemapPairChange() {
+  const pair = document.getElementById("remap-pair").value;
+  const isCustom = pair === "custom";
+  document.getElementById("remap-custom-out-wrap").classList.toggle("d-none", !isCustom);
+  document.getElementById("remap-custom-master-wrap").classList.toggle("d-none", !isCustom);
+}
+
 async function createRemapSink(ev) {
   ev.preventDefault();
+  const pair = document.getElementById("remap-pair").value;
+  let channel_map, master_channel_map;
+  if (pair === "custom") {
+    channel_map = document.getElementById("remap-channelmap").value.trim() || null;
+    master_channel_map = document.getElementById("remap-mastermap").value.trim() || null;
+  } else {
+    channel_map = REMAP_PAIRS[pair].channel_map;
+    master_channel_map = REMAP_PAIRS[pair].master_channel_map;
+  }
   const payload = {
     name: document.getElementById("remap-name").value.trim(),
     kind: "remap",
     description: document.getElementById("remap-desc").value.trim(),
     master: document.getElementById("remap-master").value,
-    channels: Number(document.getElementById("remap-channels").value),
-    channel_map: document.getElementById("remap-channelmap").value.trim() || null,
-    master_channel_map: document.getElementById("remap-mastermap").value.trim() || null,
+    channels: 2,
+    channel_map,
+    master_channel_map,
   };
   try {
     await api("/sinks", { method: "POST", body: JSON.stringify(payload) });
     document.getElementById("form-sink-remap").reset();
+    onRemapPairChange(); // reset custom fields visibility
     await loadSinks();
     await loadDevices();
     toast("Remap-Sink angelegt");
@@ -554,6 +579,7 @@ function wireUpEvents() {
   document.getElementById("sinks-open-settings").onclick = (e) => { e.preventDefault(); modalSinks.hide(); openSettingsModal(); };
   document.getElementById("form-sink-combine").onsubmit = createCombineSink;
   document.getElementById("form-sink-remap").onsubmit = createRemapSink;
+  document.getElementById("remap-pair").onchange = onRemapPairChange;
 
   document.getElementById("menu-wizard").onclick = (e) => { e.preventDefault(); openWizard(); };
   document.getElementById("wizard-next").onclick = () => { wizardStep = Math.min(WIZARD_STEPS, wizardStep + 1); renderWizardStep(); };
