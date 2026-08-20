@@ -74,6 +74,7 @@ class PlayerManager:
             "-h", host,
             "-p", str(port),
             "--hostID", config.name,
+            "--hostname", config.name,
             "--soundcard", config.device,
             "--player", player_opt,
             "--logsink", "stdout",
