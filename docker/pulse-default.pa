@@ -3,7 +3,15 @@
 # being in the pulse-access group.
 
 load-module module-native-protocol-unix auth-anonymous=1
+
+# Disable channel remixing globally — prevents PulseAudio from upmixing
+# stereo streams to all 8 channels of the surround DAC, which would cause
+# all speakers to play simultaneously instead of only the routed ones.
+load-module module-stream-restore
+load-module module-rescue-streams
+
 .nofail
-load-module module-udev-detect tsched=0
+load-module module-udev-detect tsched=0 remixing=no
 .fail
+
 load-module module-always-sink

@@ -1,9 +1,6 @@
-# PulseAudio startup script for snapcast-multiroom container
-# auth-anonymous=1 disables cookie auth so root can use pactl without
-# being in the pulse-access group.
-
+# PulseAudio system.pa for snapcast-multiroom container
 load-module module-native-protocol-unix auth-anonymous=1
 .nofail
-load-module module-udev-detect tsched=0
+load-module module-udev-detect tsched=0 remixing=no
 .fail
 load-module module-always-sink
