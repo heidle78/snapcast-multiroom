@@ -185,32 +185,52 @@ def _sink_descriptions() -> dict[str, str]:
     return desc_map
 
 
+# Human-readable PA channel name labels
+_CH_LABEL = {
+    "front-left":   "Front Left",
+    "front-right":  "Front Right",
+    "front-center": "Front Center",
+    "lfe":          "LFE",
+    "rear-left":    "Rear Left",
+    "rear-right":   "Rear Right",
+    "side-left":    "Side Left",
+    "side-right":   "Side Right",
+    "mono":         "Mono",
+}
+
+def _channel_label(ch: str) -> str:
+    return _CH_LABEL.get(ch.strip(), ch.strip())
+
+def _remap_description(master_channel_map: str) -> str:
+    """Build a human-readable description from the master_channel_map string."""
+    channels = [_channel_label(c) for c in master_channel_map.split(",") if c.strip()]
+    return " + ".join(channels)
+
+
 def list_sinks() -> list[dict]:
     """All currently loaded sinks, tagged with a kind: hardware | combine | remap | other."""
     short_sinks = _list_short_sinks()
     modules = _list_short_modules()
     descriptions = _sink_descriptions()
 
-    # Classify by the module that created the sink
+    # Build lookup: sink_name -> module info for remap/combine
     combine_names = {
         re.search(r"sink_name=(\S+)", m["argument"]).group(1)
         for m in modules
         if m["name"] == "module-combine-sink" and "sink_name=" in m["argument"]
     }
-    remap_names = {
-        re.search(r"sink_name=(\S+)", m["argument"]).group(1)
-        for m in modules
-        if m["name"] == "module-remap-sink" and "sink_name=" in m["argument"]
-    }
-    # module-alsa-card and module-alsa-sink both create hardware sinks
-    hw_names = set()
+    # For remap: also extract master_channel_map for description
+    remap_info: dict[str, str] = {}
     for m in modules:
-        if m["name"] in ("module-alsa-card", "module-alsa-sink"):
-            # alsa-card: sink name pattern is <name>.analog-surround-71 etc.
-            # We collect the module itself; sinks it creates share the module index.
-            # Easiest: mark any sink whose name is NOT combine/remap/null as hardware.
-            pass
-    # Simpler: hardware = not combine, not remap, not null-sink
+        if m["name"] == "module-remap-sink" and "sink_name=" in m["argument"]:
+            sn_match = re.search(r"sink_name=(\S+)", m["argument"])
+            mcm_match = re.search(r"master_channel_map=(\S+)", m["argument"])
+            if sn_match:
+                sn = sn_match.group(1)
+                mcm = mcm_match.group(1) if mcm_match else ""
+                remap_info[sn] = mcm
+
+    # null-sinks (dummy outputs like auto_null)
     null_names = {
         re.search(r"sink_name=(\S+)", m["argument"]).group(1)
         for m in modules
@@ -222,19 +242,19 @@ def list_sinks() -> list[dict]:
         name = s["name"]
         if name in combine_names:
             kind = "combine"
-        elif name in remap_names:
+            desc = descriptions.get(name, name)
+        elif name in remap_info:
             kind = "remap"
+            # Description: show which source channels are used
+            ch_desc = _remap_description(remap_info[name])
+            desc = ch_desc if ch_desc else descriptions.get(name, name)
         elif name in null_names or name == "auto_null":
             kind = "other"
+            desc = descriptions.get(name, name)
         else:
             kind = "hardware"
-        out.append(
-            {
-                "name": name,
-                "kind": kind,
-                "description": descriptions.get(name, name),
-            }
-        )
+            desc = descriptions.get(name, name)
+        out.append({"name": name, "kind": kind, "description": desc})
     return out
 
 
