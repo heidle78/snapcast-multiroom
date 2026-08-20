@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snapcast Multiroom Controller</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🔊 Snapcast Multiroom Controller</h1>
+  <div class="header-actions">
+    <button id="btn-settings" class="btn btn-secondary">Einstellungen</button>
+    <button id="btn-add" class="btn btn-primary">+ Player hinzufügen</button>
+  </div>
+</header>
+
+<main>
+  <div id="empty-state" class="empty-state hidden">
+    Noch keine Player konfiguriert. Klicke oben rechts auf "Player hinzufügen".
+  </div>
+  <div id="player-grid" class="player-grid"></div>
+</main>
+
+<!-- Add / Edit Player Modal -->
+<div id="modal-player" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="modal-title">Player hinzufügen</h2>
+    <form id="form-player">
+      <label>Name
+        <input type="text" id="f-name" required pattern="[A-Za-z0-9_\-]+" placeholder="z.B. Kueche">
+      </label>
+      <label>Audio-Gerät (ALSA)
+        <input type="text" id="f-device" list="device-list" required placeholder="z.B. plughw:1,0">
+        <datalist id="device-list"></datalist>
+      </label>
+      <div class="form-row">
+        <label>Snapserver Host (optional, sonst Standard)
+          <input type="text" id="f-host" placeholder="leer = Standard verwenden">
+        </label>
+        <label>Snapserver Port
+          <input type="number" id="f-port" placeholder="leer = Standard">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>Buffer Time (ms)
+          <input type="number" id="f-buffer" value="80" min="10">
+        </label>
+        <label>Fragments
+          <input type="number" id="f-fragments" value="4" min="2">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>Latenz-Ausgleich (ms)
+          <input type="number" id="f-latency" value="0" min="0" title="Kompensiert Verzögerung von Verstärker/Lautsprechern">
+        </label>
+        <label>Sample Format (optional)
+          <input type="text" id="f-sampleformat" placeholder="z.B. 48000:16:2">
+        </label>
+      </div>
+      <label>Zusätzliche snapclient-Argumente (optional)
+        <input type="text" id="f-extra" placeholder="frei, z.B. --mixer hardware">
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="f-enabled" checked>
+        Automatisch starten
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="btn-cancel">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" id="btn-save">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="modal-settings" class="modal hidden">
+  <div class="modal-content">
+    <h2>Einstellungen</h2>
+    <form id="form-settings">
+      <label>Standard Snapserver Host
+        <input type="text" id="s-host" placeholder="z.B. 192.168.1.10">
+      </label>
+      <label>Standard Snapserver Port
+        <input type="number" id="s-port" value="1704">
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="btn-settings-cancel">Abbrechen</button>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Log Viewer Modal -->
+<div id="modal-logs" class="modal hidden">
+  <div class="modal-content modal-wide">
+    <h2 id="log-title">Logs</h2>
+    <pre id="log-content" class="log-view"></pre>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="btn-logs-close">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

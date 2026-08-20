@@ -1,0 +1,30 @@
+services:
+  snapcast-multiroom:
+    build: .
+    # Once you've pushed the image somewhere, you can swap the line above for:
+    # image: ghcr.io/<you>/snapcast-multiroom:latest
+    container_name: snapcast-multiroom
+    restart: unless-stopped
+    # host networking gives snapclient the simplest, most reliable path to
+    # the Snapserver/Music Assistant host and avoids any port juggling.
+    network_mode: host
+    environment:
+      # IP (or hostname) of the machine running Music Assistant's Snapcast
+      # provider (built-in Snapserver listens on 1704/1705 there).
+      SNAPSERVER_HOST: "192.168.1.10"
+      SNAPSERVER_PORT: "1704"
+      WEB_PORT: "8098"
+      LOG_LEVEL: "info"
+    devices:
+      - /dev/snd:/dev/snd
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      # Uncomment if you use custom ALSA virtual devices (dmix, softvol, ...):
+      # - /etc/asound.conf:/etc/asound.conf:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8098/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
