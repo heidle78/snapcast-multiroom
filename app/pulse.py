@@ -191,7 +191,7 @@ def list_sinks() -> list[dict]:
     modules = _list_short_modules()
     descriptions = _sink_descriptions()
 
-    hw_prefix = "hw_"
+    # Classify by the module that created the sink
     combine_names = {
         re.search(r"sink_name=(\S+)", m["argument"]).group(1)
         for m in modules
@@ -202,6 +202,20 @@ def list_sinks() -> list[dict]:
         for m in modules
         if m["name"] == "module-remap-sink" and "sink_name=" in m["argument"]
     }
+    # module-alsa-card and module-alsa-sink both create hardware sinks
+    hw_names = set()
+    for m in modules:
+        if m["name"] in ("module-alsa-card", "module-alsa-sink"):
+            # alsa-card: sink name pattern is <name>.analog-surround-71 etc.
+            # We collect the module itself; sinks it creates share the module index.
+            # Easiest: mark any sink whose name is NOT combine/remap/null as hardware.
+            pass
+    # Simpler: hardware = not combine, not remap, not null-sink
+    null_names = {
+        re.search(r"sink_name=(\S+)", m["argument"]).group(1)
+        for m in modules
+        if m["name"] == "module-null-sink" and "sink_name=" in m["argument"]
+    }
 
     out = []
     for s in short_sinks:
@@ -210,10 +224,10 @@ def list_sinks() -> list[dict]:
             kind = "combine"
         elif name in remap_names:
             kind = "remap"
-        elif name.startswith(hw_prefix):
-            kind = "hardware"
-        else:
+        elif name in null_names or name == "auto_null":
             kind = "other"
+        else:
+            kind = "hardware"
         out.append(
             {
                 "name": name,

@@ -324,19 +324,28 @@ function renderSinks() {
     btn.onclick = () => deleteSink(btn.dataset.del);
   });
 
-  // populate slave/master selects with every currently loaded sink
+  // Combine slaves: all sinks except dummy/null (other)
+  // Master device: only hardware sinks (the physical multi-channel DAC)
   const slaveSelect = document.getElementById("combine-slaves");
   const masterSelect = document.getElementById("remap-master");
   slaveSelect.innerHTML = "";
-  masterSelect.innerHTML = "";
+  masterSelect.innerHTML = `<option value="">Gerät auswählen...</option>`;
   for (const s of sinksData.sinks) {
-    const label = `${s.description} (${s.name}) [${s.kind}]`;
+    if (s.kind === "other") continue; // skip dummy sinks everywhere
+    // Combine slaves: hardware + remap + combine (anything playable)
+    const slaveLabel = s.kind === "hardware"
+      ? s.description || s.name
+      : `${s.name} [${s.kind}]`;
     const o1 = document.createElement("option");
-    o1.value = s.name; o1.textContent = label;
+    o1.value = s.name; o1.textContent = slaveLabel;
     slaveSelect.appendChild(o1);
-    const o2 = document.createElement("option");
-    o2.value = s.name; o2.textContent = label;
-    masterSelect.appendChild(o2);
+    // Master device (remap source): only hardware sinks
+    if (s.kind === "hardware") {
+      const o2 = document.createElement("option");
+      o2.value = s.name;
+      o2.textContent = s.description || s.name;
+      masterSelect.appendChild(o2);
+    }
   }
 }
 

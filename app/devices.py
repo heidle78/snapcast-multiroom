@@ -93,15 +93,27 @@ def list_output_targets(backend: str) -> list[dict]:
     if backend == "pulse":
         from pulse import list_sinks  # local import: avoids import cycle
 
-        return [
-            {
+        result = []
+        for s in list_sinks():
+            kind = s.get("kind", "other")
+            # Player dropdown: skip dummy/null sinks (kind=other)
+            if kind == "other":
+                continue
+            # Label: for remap/combine use the sink name (user-chosen),
+            # for hardware use the PA description (device name from driver)
+            if kind == "hardware":
+                label = s.get("description") or s["name"]
+            else:
+                # remap/combine: show user-chosen name + kind badge
+                label = f"{s['name']} [{kind}]"
+            result.append({
                 "id": s["name"],
                 "hw": s["name"],
                 "plughw": s["name"],
                 "card": None,
                 "device": None,
-                "label": f"{s['description']} [{s['kind']}]" if s.get("description") else s["name"],
-            }
-            for s in list_sinks()
-        ]
+                "label": label,
+                "kind": kind,
+            })
+        return result
     return list_alsa_devices()
