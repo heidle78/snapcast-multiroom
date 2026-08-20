@@ -459,3 +459,60 @@ def set_sink_volume(sink_name: str, volume: int) -> bool:
     volume = max(0, min(100, volume))
     result = _run(["pactl", "set-sink-volume", sink_name, f"{volume}%"])
     return result.returncode == 0
+
+
+# -- test tone ------------------------------------------------------------
+
+def _generate_sine_wav(frequency: int = 1000, duration_ms: int = 1000,
+                        sample_rate: int = 44100, channels: int = 2) -> bytes:
+    """Generate a minimal PCM WAV file with a sine wave."""
+    import math, struct
+    num_samples = int(sample_rate * duration_ms / 1000)
+    amplitude = 16000  # safe level, not clipping
+    pcm = bytearray()
+    for i in range(num_samples):
+        sample = int(amplitude * math.sin(2 * math.pi * frequency * i / sample_rate))
+        for _ in range(channels):
+            pcm += struct.pack("<h", sample)
+
+    data_size = len(pcm)
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF", 36 + data_size, b"WAVE",
+        b"fmt ", 16,
+        1,           # PCM
+        channels,
+        sample_rate,
+        sample_rate * channels * 2,  # byte rate
+        channels * 2,               # block align
+        16,                         # bits per sample
+        b"data", data_size,
+    )
+    return bytes(header) + bytes(pcm)
+
+
+def play_test_tone(sink_name: str, duration_ms: int = 1200) -> bool:
+    """Play a 1kHz sine wave on the given PA sink via paplay.
+
+    Runs synchronously (blocks until done). Keep duration_ms short.
+    Returns True if paplay exited cleanly.
+    """
+    import tempfile
+    wav = _generate_sine_wav(frequency=1000, duration_ms=duration_ms)
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        f.write(wav)
+        tmp = f.name
+    try:
+        result = subprocess.run(
+            ["paplay", "--device", sink_name, tmp],
+            capture_output=True, text=True, timeout=duration_ms / 1000 + 3
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logger.warning("play_test_tone failed: %s", e)
+        return False
+    finally:
+        try:
+            _os.remove(tmp)
+        except OSError:
+            pass

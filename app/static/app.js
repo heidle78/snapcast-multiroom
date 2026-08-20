@@ -356,12 +356,34 @@ function renderSinks() {
           <span class="small text-body-secondary sink-vol-label" style="min-width:28px;text-align:right">100%</span>
         </div>
       </td>
-      <td class="text-end">${isCustom ? '<button class="btn btn-sm btn-outline-danger" data-del="' + escapeHtml(s.name) + '"><i class="fa-solid fa-trash"></i></button>' : ""}</td>
+      <td class="text-end d-flex gap-1 justify-content-end">
+        <button class="btn btn-sm btn-outline-primary" data-test="${escapeHtml(s.name)}" title="Testton abspielen">
+          <i class="fa-solid fa-volume-high"></i>
+        </button>
+        ${isCustom ? '<button class="btn btn-sm btn-outline-danger" data-del="' + escapeHtml(s.name) + '"><i class="fa-solid fa-trash"></i></button>' : ""}
+      </td>
     `;
     tbody.appendChild(tr);
   }
   tbody.querySelectorAll("[data-del]").forEach((btn) => {
     btn.onclick = () => deleteSink(btn.dataset.del);
+  });
+
+  tbody.querySelectorAll("[data-test]").forEach((btn) => {
+    btn.onclick = async () => {
+      const sink = btn.dataset.test;
+      const icon = btn.querySelector("i");
+      btn.disabled = true;
+      icon.className = "fa-solid fa-spinner fa-spin";
+      try {
+        await api(`/sinks/${encodeURIComponent(sink)}/test`, { method: "POST" });
+      } catch (e) {
+        toast(`Testton fehlgeschlagen: ${e.message}`, true);
+      } finally {
+        btn.disabled = false;
+        icon.className = "fa-solid fa-volume-high";
+      }
+    };
   });
 
   // Load and wire volume sliders for each sink row

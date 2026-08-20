@@ -287,6 +287,19 @@ async def set_sink_volume(name: str, body: dict):
     return {"name": name, "volume": volume}
 
 
+@app.post("/api/sinks/{name}/test")
+async def test_sink(name: str):
+    """Play a short test tone on the given PA sink."""
+    if settings.backend != "pulse":
+        raise HTTPException(status_code=400, detail="Requires PulseAudio backend")
+    import asyncio
+    loop = asyncio.get_event_loop()
+    ok = await loop.run_in_executor(None, pulse.play_test_tone, name)
+    if not ok:
+        raise HTTPException(status_code=500, detail="paplay failed — check sink name and PA status")
+    return {"ok": True, "sink": name}
+
+
 @app.get("/api/diagnostics")
 async def get_diagnostics():
     """Downloadable text bundle: config (redacted), sinks, devices, recent logs."""
