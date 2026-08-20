@@ -441,3 +441,21 @@ def replay_custom_sinks(sinks: list[CustomSinkConfig]) -> None:
             create_sink(cfg)
         except PulseError as exc:
             logger.warning("Could not replay custom sink '%s': %s", cfg.name, exc)
+
+
+# -- volume control -------------------------------------------------------
+
+def get_sink_volume(sink_name: str) -> int | None:
+    """Return current volume (0-100) for a PA sink, or None on error."""
+    result = _run(["pactl", "get-sink-volume", sink_name])
+    if result.returncode != 0:
+        return None
+    m = re.search(r"(\d+)%", result.stdout)
+    return int(m.group(1)) if m else None
+
+
+def set_sink_volume(sink_name: str, volume: int) -> bool:
+    """Set volume (0-100) for a PA sink. Returns True on success."""
+    volume = max(0, min(100, volume))
+    result = _run(["pactl", "set-sink-volume", sink_name, f"{volume}%"])
+    return result.returncode == 0

@@ -90,6 +90,7 @@ function renderPlayers() {
 
     const col = document.createElement("div");
     col.className = "col-sm-6 col-lg-4 col-xl-3";
+    const isPulse = (settings && settings.backend === "pulse");
     col.innerHTML = `
       <div class="card h-100 shadow-sm player-card">
         <div class="card-body">
@@ -105,6 +106,15 @@ function renderPlayers() {
             <div>Buffer: ${p.config.buffer_time_ms}ms · Latenz: ${p.config.latency_ms}ms</div>
             <div>Uptime: ${uptime} · PID: ${p.pid ?? "-"} · Neustarts: ${p.restart_count}</div>
           </div>
+          ${isPulse ? `
+          <div class="mt-2 pt-2 border-top">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fa-solid fa-volume-low text-body-secondary" style="min-width:14px"></i>
+              <input type="range" class="form-range flex-grow-1" min="0" max="100" value="100"
+                data-vol-sink="${escapeHtml(p.config.device)}" title="Lautstärke Sink">
+              <span class="small text-body-secondary vol-label" style="min-width:30px;text-align:right">100%</span>
+            </div>
+          </div>` : ""}
         </div>
         <div class="card-footer bg-transparent d-flex flex-wrap gap-1">
           <button class="btn btn-sm btn-outline-success" data-action="start" title="Start"><i class="fa-solid fa-play"></i></button>
@@ -123,6 +133,28 @@ function renderPlayers() {
     col.querySelector('[data-action="logs"]').onclick = () => openLogsForPlayer(p.name);
     col.querySelector('[data-action="edit"]').onclick = () => openEditModal(p);
     col.querySelector('[data-action="delete"]').onclick = () => deletePlayer(p.name);
+
+    // Volume slider: load current value then wire up change handler
+    if (isPulse) {
+      const slider = col.querySelector("[data-vol-sink]");
+      const label = col.querySelector(".vol-label");
+      const sink = slider.dataset.volSink;
+      // Load current volume
+      api(`/sinks/${encodeURIComponent(sink)}/volume`).then(r => {
+        if (r && r.volume != null) { slider.value = r.volume; label.textContent = r.volume + "%"; }
+      }).catch(() => {});
+      // Debounced set on change
+      let volTimer;
+      slider.oninput = () => { label.textContent = slider.value + "%"; };
+      slider.onchange = () => {
+        clearTimeout(volTimer);
+        volTimer = setTimeout(() => {
+          api(`/sinks/${encodeURIComponent(sink)}/volume`, {
+            method: "PUT", body: JSON.stringify({ volume: Number(slider.value) })
+          }).catch(e => toast("Lautstärke fehlgeschlagen: " + e.message, true));
+        }, 200);
+      };
+    }
 
     grid.appendChild(col);
   }
@@ -316,12 +348,39 @@ function renderSinks() {
       <td><code>${escapeHtml(s.name)}</code></td>
       <td><span class="badge text-bg-light border">${escapeHtml(s.kind)}</span></td>
       <td>${escapeHtml((custom && custom.description) || s.description)}</td>
+      <td style="min-width:160px">
+        <div class="d-flex align-items-center gap-1">
+          <i class="fa-solid fa-volume-low text-body-secondary" style="min-width:12px;font-size:.8em"></i>
+          <input type="range" class="form-range" min="0" max="100" value="100"
+            data-sink-vol="${escapeHtml(s.name)}" style="flex:1">
+          <span class="small text-body-secondary sink-vol-label" style="min-width:28px;text-align:right">100%</span>
+        </div>
+      </td>
       <td class="text-end">${isCustom ? '<button class="btn btn-sm btn-outline-danger" data-del="' + escapeHtml(s.name) + '"><i class="fa-solid fa-trash"></i></button>' : ""}</td>
     `;
     tbody.appendChild(tr);
   }
   tbody.querySelectorAll("[data-del]").forEach((btn) => {
     btn.onclick = () => deleteSink(btn.dataset.del);
+  });
+
+  // Load and wire volume sliders for each sink row
+  tbody.querySelectorAll("[data-sink-vol]").forEach((slider) => {
+    const sink = slider.dataset.sinkVol;
+    const label = slider.closest("td").querySelector(".sink-vol-label");
+    api(`/sinks/${encodeURIComponent(sink)}/volume`).then(r => {
+      if (r && r.volume != null) { slider.value = r.volume; label.textContent = r.volume + "%"; }
+    }).catch(() => {});
+    slider.oninput = () => { label.textContent = slider.value + "%"; };
+    let t;
+    slider.onchange = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        api(`/sinks/${encodeURIComponent(sink)}/volume`, {
+          method: "PUT", body: JSON.stringify({ volume: Number(slider.value) })
+        }).catch(e => toast("Lautstärke fehlgeschlagen: " + e.message, true));
+      }, 200);
+    };
   });
 
   // Combine slaves: all sinks except dummy/null (other)

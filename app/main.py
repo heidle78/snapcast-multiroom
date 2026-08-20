@@ -243,6 +243,50 @@ async def get_all_logs(player: str = "", search: str = "", lines: int = 500):
     return entries[-lines:]
 
 
+@app.get("/api/players/{name}/volume")
+async def get_player_volume(name: str):
+    """Get current PA sink volume (0-100) for the player's device."""
+    if name not in manager.players:
+        raise HTTPException(status_code=404, detail="Unknown player")
+    rt = manager.players[name]
+    if settings.backend != "pulse":
+        raise HTTPException(status_code=400, detail="Volume control requires PulseAudio backend")
+    vol = pulse.get_sink_volume(rt.config.device)
+    return {"name": name, "device": rt.config.device, "volume": vol}
+
+
+@app.put("/api/players/{name}/volume")
+async def set_player_volume(name: str, body: dict):
+    """Set PA sink volume (0-100) for the player's device."""
+    if name not in manager.players:
+        raise HTTPException(status_code=404, detail="Unknown player")
+    rt = manager.players[name]
+    if settings.backend != "pulse":
+        raise HTTPException(status_code=400, detail="Volume control requires PulseAudio backend")
+    volume = max(0, min(100, int(body.get("volume", 100))))
+    ok = pulse.set_sink_volume(rt.config.device, volume)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to set volume")
+    return {"name": name, "device": rt.config.device, "volume": volume}
+
+
+@app.get("/api/sinks/{name}/volume")
+async def get_sink_volume(name: str):
+    """Get current PA sink volume (0-100)."""
+    vol = pulse.get_sink_volume(name)
+    return {"name": name, "volume": vol}
+
+
+@app.put("/api/sinks/{name}/volume")
+async def set_sink_volume(name: str, body: dict):
+    """Set PA sink volume (0-100)."""
+    volume = max(0, min(100, int(body.get("volume", 100))))
+    ok = pulse.set_sink_volume(name, volume)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to set volume")
+    return {"name": name, "volume": volume}
+
+
 @app.get("/api/diagnostics")
 async def get_diagnostics():
     """Downloadable text bundle: config (redacted), sinks, devices, recent logs."""
