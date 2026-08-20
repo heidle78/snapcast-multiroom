@@ -285,27 +285,21 @@
                   <label class="form-label">Beschreibung</label>
                   <input type="text" class="form-control" id="remap-desc" placeholder="z.B. Wohnzimmer">
                 </div>
-                <div class="col-md-6">
+                <div class="col-12">
                   <label class="form-label">Quell-Sink (Master)</label>
                   <select class="form-select" id="remap-master"></select>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Stereo-Kanalpaar</label>
-                  <select class="form-select" id="remap-pair">
-                    <option value="1">Kanal 1+2 (front-left / front-right)</option>
-                    <option value="2">Kanal 3+4 (rear-left / rear-right)</option>
-                    <option value="3">Kanal 5+6 (side-left / side-right)</option>
-                    <option value="4">Kanal 7+8 (center / lfe)</option>
-                    <option value="custom">Manuell eingeben …</option>
-                  </select>
-                </div>
-                <div class="col-md-6 d-none" id="remap-custom-out-wrap">
-                  <label class="form-label">Ausgangs-Kanalzuordnung</label>
-                  <input type="text" class="form-control" id="remap-channelmap" placeholder="z.B. front-left,front-right">
-                </div>
-                <div class="col-md-6 d-none" id="remap-custom-master-wrap">
-                  <label class="form-label">Quell-Kanalzuordnung</label>
-                  <input type="text" class="form-control" id="remap-mastermap" placeholder="z.B. front-left,front-right">
+                <div class="col-12">
+                  <label class="form-label d-flex justify-content-between align-items-center">
+                    Kanal-Zuordnung
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="remap-add-channel">
+                      <i class="fa-solid fa-plus me-1"></i>Kanal hinzufügen
+                    </button>
+                  </label>
+                  <div id="remap-channel-rows" class="d-flex flex-column gap-2">
+                    <!-- rows injected by JS -->
+                  </div>
+                  <div class="form-text">Ausgangskanal (links) → Quellkanal im Master-Sink (rechts)</div>
                 </div>
                 <div class="col-12 text-end">
                   <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i>Remap-Sink anlegen</button>

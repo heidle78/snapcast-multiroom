@@ -370,45 +370,91 @@ async function createCombineSink(ev) {
   }
 }
 
-// Stereo pair presets for 8-channel DACs (PulseAudio surround71 channel names)
-const REMAP_PAIRS = {
-  "1": { channel_map: "front-left,front-right",   master_channel_map: "front-left,front-right" },
-  "2": { channel_map: "front-left,front-right",   master_channel_map: "rear-left,rear-right" },
-  "3": { channel_map: "front-left,front-right",   master_channel_map: "side-left,side-right" },
-  "4": { channel_map: "front-left,front-right",   master_channel_map: "center,lfe" },
+// All PulseAudio channel names (matches Sendspin's PulseAudioChannels.AllChannels)
+const PA_CHANNELS = [
+  "front-left", "front-right", "front-center", "lfe",
+  "rear-left", "rear-right", "rear-center",
+  "side-left", "side-right",
+  "mono", "left", "right", "center", "subwoofer"
+];
+
+// Human-readable labels for the 8-channel surround layout of the DAC
+const PA_CHANNEL_LABELS = {
+  "front-left":   "front-left   (Kanal 1)",
+  "front-right":  "front-right  (Kanal 2)",
+  "front-center": "front-center (Kanal 3)",
+  "lfe":          "lfe          (Kanal 4)",
+  "rear-left":    "rear-left    (Kanal 5)",
+  "rear-right":   "rear-right   (Kanal 6)",
+  "side-left":    "side-left    (Kanal 7)",
+  "side-right":   "side-right   (Kanal 8)",
+  "rear-center":  "rear-center",
+  "mono":         "mono",
+  "left":         "left",
+  "right":        "right",
+  "center":       "center",
+  "subwoofer":    "subwoofer",
 };
 
-function onRemapPairChange() {
-  const pair = document.getElementById("remap-pair").value;
-  const isCustom = pair === "custom";
-  document.getElementById("remap-custom-out-wrap").classList.toggle("d-none", !isCustom);
-  document.getElementById("remap-custom-master-wrap").classList.toggle("d-none", !isCustom);
+function channelOptions(selected) {
+  return PA_CHANNELS.map(ch =>
+    `<option value="${ch}"${ch === selected ? " selected" : ""}>${PA_CHANNEL_LABELS[ch] || ch}</option>`
+  ).join("");
+}
+
+// Default output channel names per row index (stereo output convention)
+const DEFAULT_OUTPUT_CH = ["front-left", "front-right", "front-left", "front-right"];
+
+function addRemapChannelRow(outputCh, masterCh) {
+  const rows = document.getElementById("remap-channel-rows");
+  const idx = rows.children.length;
+  const outCh = outputCh || DEFAULT_OUTPUT_CH[idx] || "front-left";
+  const mstCh = masterCh || PA_CHANNELS[idx] || "front-left";
+  const div = document.createElement("div");
+  div.className = "d-flex gap-2 align-items-center";
+  div.innerHTML = `
+    <select class="form-select form-select-sm remap-out-ch" title="Ausgangskanal">${channelOptions(outCh)}</select>
+    <span class="text-body-secondary flex-shrink-0">→</span>
+    <select class="form-select form-select-sm remap-master-ch" title="Quellkanal im Master">${channelOptions(mstCh)}</select>
+    <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" onclick="this.closest('div').remove()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>`;
+  rows.appendChild(div);
+}
+
+function initRemapRows() {
+  document.getElementById("remap-channel-rows").innerHTML = "";
+  // Default: stereo (front-left→front-left, front-right→front-right)
+  addRemapChannelRow("front-left",  "front-left");
+  addRemapChannelRow("front-right", "front-right");
 }
 
 async function createRemapSink(ev) {
   ev.preventDefault();
-  const pair = document.getElementById("remap-pair").value;
-  let channel_map, master_channel_map;
-  if (pair === "custom") {
-    channel_map = document.getElementById("remap-channelmap").value.trim() || null;
-    master_channel_map = document.getElementById("remap-mastermap").value.trim() || null;
-  } else {
-    channel_map = REMAP_PAIRS[pair].channel_map;
-    master_channel_map = REMAP_PAIRS[pair].master_channel_map;
+  const rows = document.querySelectorAll("#remap-channel-rows > div");
+  if (rows.length === 0) {
+    toast("Bitte mindestens einen Kanal hinzufügen", true);
+    return;
   }
+  const outputChannels = [];
+  const masterChannels = [];
+  rows.forEach(row => {
+    outputChannels.push(row.querySelector(".remap-out-ch").value);
+    masterChannels.push(row.querySelector(".remap-master-ch").value);
+  });
   const payload = {
     name: document.getElementById("remap-name").value.trim(),
     kind: "remap",
     description: document.getElementById("remap-desc").value.trim(),
     master: document.getElementById("remap-master").value,
-    channels: 2,
-    channel_map,
-    master_channel_map,
+    channels: outputChannels.length,
+    channel_map: outputChannels.join(","),
+    master_channel_map: masterChannels.join(","),
   };
   try {
     await api("/sinks", { method: "POST", body: JSON.stringify(payload) });
     document.getElementById("form-sink-remap").reset();
-    onRemapPairChange(); // reset custom fields visibility
+    initRemapRows();
     await loadSinks();
     await loadDevices();
     toast("Remap-Sink angelegt");
@@ -579,7 +625,8 @@ function wireUpEvents() {
   document.getElementById("sinks-open-settings").onclick = (e) => { e.preventDefault(); modalSinks.hide(); openSettingsModal(); };
   document.getElementById("form-sink-combine").onsubmit = createCombineSink;
   document.getElementById("form-sink-remap").onsubmit = createRemapSink;
-  document.getElementById("remap-pair").onchange = onRemapPairChange;
+  document.getElementById("remap-add-channel").onclick = () => addRemapChannelRow();
+  initRemapRows();
 
   document.getElementById("menu-wizard").onclick = (e) => { e.preventDefault(); openWizard(); };
   document.getElementById("wizard-next").onclick = () => { wizardStep = Math.min(WIZARD_STEPS, wizardStep + 1); renderWizardStep(); };
